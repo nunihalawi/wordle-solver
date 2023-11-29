@@ -1,4 +1,5 @@
 from math import log2
+from collections import Counter
 import os
 
 class Information:
@@ -10,69 +11,63 @@ class Information:
 
         with open(os.path.join(os.path.dirname(__file__), "resources", "allowed-guesses.txt")) as f:
             self.guesses = f.read().split()
-            # print(self.guesses)
 
-    def entropy(self, p, n):
-        if p == 0 or n == 0:
-            return 0
-        
-        return 0
+    def feedback(self, answer, guess):
+        if len(answer) != len(guess):
+            raise ValueError("Word and guess must be the same length")
     
-    def format_feedback(self, dict):
-        formatted_dict = ""
-        for key, value in dict.items():
-            formatted_dict += f"{key} [{' '.join(value)}]\n"
-        return formatted_dict
-
-    def feedback(self, guess, answer):
-        
-        if len(guess) != 5 or len(answer) != 5 or guess not in self.guesses or answer not in self.answers:
-            return KeyError("Invalid Guess or Answer")
-
-        info_ = []
+        feedback_string = ""
 
         for i in range(len(guess)):
-            if guess[i] == answer[i]:
-                info_.append("G")
-            elif guess[i] != answer[i] and guess[i] in answer:
-                info_.append("Y")
-            else:
-                info_.append("X")
+            if guess[i] not in answer:
+                feedback_string += "X"
+            elif guess[i] in answer and guess[i] != answer[i]:
+                feedback_string += "Y"
+            elif guess[i] == answer[i]:
+                feedback_string += "G"
 
-        return info_
+        return feedback_string
+    def clean_guesses(self, game_guesses, remaining_answers):
+        for guess, feedback in game_guesses:
+            for i, letter in enumerate(guess):
+                if feedback[i] == "X":
+                    # Letter not in word, remove all words containing this letter
+                    remaining_answers = [answer for answer in remaining_answers if letter not in answer]
+                elif feedback[i] == "Y":
+                    # Letter in word but wrong position, remove words not containing this letter
+                    # or having it in this position
+                    remaining_answers = [answer for answer in remaining_answers if letter in answer and answer[i] != letter]
+                elif feedback[i] == "G":
+                    # Letter in correct position, keep words with this letter in the same position
+                    remaining_answers = [answer for answer in remaining_answers if answer[i] == letter]
 
-
-    def remaining_possib(self, feedback, dictionary):
-        # feedback = {word: feedback}
-        # dictionary = [list of possible remaining words]
-        possible_answers = list(dictionary)
-
-        for guess, info in feedback.items():
-
-            for feedback in info:
-
-                if feedback == "G":
-                    print(f"This is green, now we are inspecting the letter")
-                    for word in possible_answers:
-                        if word[i] != guess[i]:
-                            possible_answers.remove(word)
-
-                elif info[i] == "Y":
-                    for word in possible_answers:
-                        if word[i] == guess[i] or guess[i] not in word:
-                            possible_answers.remove(word)
-
-                elif info[i] == "X":
-                    for word in possible_answers:
-                        if guess[i] in word:
-                            possible_answers.remove(word)
-
-
-        return len(possible_answers), possible_answers
-
-
-
+        return remaining_answers
     
+    def format_feedback(self, all_guesses):
+        feedback = ""
+        for guess, fb in all_guesses.items():
+            feedback += f"{guess}\n{fb}\n\n"
+        return feedback
+                
+    def calculate_remaining_entropies(self, all_guesses):
+        remaining_entropies = {}
+        unguessed_words = self.clean_guesses(all_guesses, [word for word in self.answers if word not in all_guesses.keys()])
+        
+        for guess in unguessed_words:
+            feedback_patterns = [self.feedback(word, guess) for word in unguessed_words]
+            patterns = Counter(feedback_patterns)
+
+            entropy = 0
+            for count in patterns.values():
+                probability = count / len(feedback_patterns)
+                entropy += probability * log2(probability)
+
+            remaining_entropies[guess] = entropy
+
+        return remaining_entropies
+    
+    def max_entropy(self, remaining_entropies):
+        return max(remaining_entropies, key=remaining_entropies.get)
 
     
 

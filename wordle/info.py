@@ -15,7 +15,7 @@ class Information:
     def feedback(self, answer, guess):
         if len(answer) != len(guess):
             raise ValueError("Word and guess must be the same length")
-    
+        
         feedback_string = ""
 
         for i in range(len(guess)):
@@ -28,7 +28,7 @@ class Information:
 
         return feedback_string
     def clean_guesses(self, game_guesses, remaining_answers):
-        for guess, feedback in game_guesses:
+        for guess, feedback in game_guesses.items():
             for i, letter in enumerate(guess):
                 if feedback[i] == "X":
                     # Letter not in word, remove all words containing this letter
